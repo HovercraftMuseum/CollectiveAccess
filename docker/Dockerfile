@@ -125,12 +125,18 @@ COPY docker/setup.php /var/www/html/setup.php
 # Static health check target (allowed by CA's .htaccess because it is .txt)
 RUN echo "ok" > /var/www/html/healthz.txt
 
-# Writable directories, outside the web root. Compose mounts volumes on tmp
-# and log.
+# Writable directories. Compose mounts volumes on tmp and log; the
+# entrypoint creates the folders inside tmp. The media uploader's staging
+# folder moves from the web root into tmp.
 RUN mkdir -p /var/lib/collectiveaccess/tmp /var/lib/collectiveaccess/log \
              /var/www/html/media/collectiveaccess \
+ && grep -q '^media_uploader_root_directory = ' /var/www/html/app/conf/app.conf \
+ && sed -i 's|^media_uploader_root_directory = .*|media_uploader_root_directory = /var/lib/collectiveaccess/tmp/media-uploads|' \
+        /var/www/html/app/conf/app.conf \
+ && rm -rf /var/www/html/uploads \
  && chown -R www-data:www-data /var/lib/collectiveaccess /var/www/html/media \
- && chown -R www-data:www-data /var/www/html/vendor/ezyang/htmlpurifier/library/HTMLPurifier/DefinitionCache
+        /var/www/html/app/fonts \
+        /var/www/html/vendor/ezyang/htmlpurifier/library/HTMLPurifier/DefinitionCache
 
 COPY docker/entrypoint.sh /usr/local/bin/ca-entrypoint
 COPY docker/cautils /usr/local/bin/cautils

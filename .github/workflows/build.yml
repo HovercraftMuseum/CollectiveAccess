@@ -119,7 +119,7 @@ jobs:
           echo "Requesting the login page"
           status="$(curl -s -o page.html -w '%{http_code}' -L http://localhost:8080/index.php)"
           echo "HTTP $status"
-          if grep -Eqi 'Composer detected issues|Fatal error|Uncaught' page.html; then
+          if grep -Eqi 'Composer detected issues|Fatal error|Uncaught|issues with your configuration' page.html; then
             echo "Application error in page:" >&2
             head -c 2000 page.html >&2
             exit 1

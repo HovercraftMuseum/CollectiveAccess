@@ -133,7 +133,7 @@ if (ca_env('CA_SITE_PROTOCOL') && !defined("__CA_SITE_PROTOCOL__")) {
 # Paths: keep writable state outside the code tree so the image stays immutable
 # --------------------------------------------------------------------------------------------
 if (!defined("__CA_TEMP_DIR__")) {
-	define("__CA_TEMP_DIR__", ca_env('CA_TEMP_DIR', '/var/lib/collectiveaccess/tmp'));
+	define("__CA_TEMP_DIR__", ca_env('CA_TEMP_DIR', '/var/lib/collectiveaccess/tmp/ca'));
 }
 if (!defined("__CA_LOG_DIR__")) {
 	define("__CA_LOG_DIR__", ca_env('CA_LOG_DIR', '/var/lib/collectiveaccess/log'));
