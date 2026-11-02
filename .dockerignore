@@ -1,0 +1,12 @@
+# Only docker/ is needed to build the image.
+.git
+.github
+docs
+data
+scripts
+secrets
+*.md
+.env
+*.env
+compose.yaml
+renovate.json

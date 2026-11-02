@@ -1,0 +1,14 @@
+#!/bin/sh
+# Run CollectiveAccess's command-line utility as the web server user, so any
+# files it creates (media, cache, logs) have the right owner.
+#
+# Usage (from the folder holding compose.yaml):
+#   docker compose exec web cautils help
+#   docker compose exec web cautils update-database-schema
+#   docker compose exec web cautils rebuild-search-indices
+set -eu
+if [ "$(id -u)" = "0" ]; then
+    exec setpriv --reuid=www-data --regid=www-data --init-groups \
+        php /var/www/html/support/bin/caUtils "$@"
+fi
+exec php /var/www/html/support/bin/caUtils "$@"

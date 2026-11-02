@@ -1,0 +1,128 @@
+# CollectiveAccess Providence stack
+#
+# Services:
+#   web    CollectiveAccess Providence (Apache + PHP), image built by this repo
+#   db     MySQL
+#   redis  in-memory cache, nothing persisted
+#
+# Everything site-specific (paths, passwords, names) comes from the .env file
+# next to this one. Copy .env.example to .env and fill it in; never commit it.
+# See "Storage" in README.md for what each path is for.
+#
+# Update policy:
+#   - `web` is pinned to a CollectiveAccess version tag, e.g. :2.0.11.
+#     Runtime/security rebuilds arrive under the same tag automatically.
+#     Moving to a new CA version means changing CA_IMAGE_TAG by hand.
+#   - `db` and `redis` are pinned to a release line and only changed by hand.
+
+name: collectiveaccess
+
+# Rotate container logs (docker compose logs) instead of keeping them forever
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "5"
+
+services:
+  web:
+    logging: *logging
+    image: ${CA_IMAGE:?set CA_IMAGE in .env}:${CA_IMAGE_TAG:?set CA_IMAGE_TAG in .env}
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    environment:
+      # Owner of your data folders; leave empty to keep the image default (33)
+      CA_UID: ${CA_UID:-}
+      CA_GID: ${CA_GID:-}
+      CA_DB_HOST: db
+      CA_DB_DATABASE: ${CA_DB_DATABASE:-collectiveaccess}
+      CA_DB_USER: ${CA_DB_USER:-collectiveaccess}
+      CA_DB_PASSWORD: ${CA_DB_PASSWORD:?set CA_DB_PASSWORD in .env}
+      CA_APP_DISPLAY_NAME: ${CA_APP_DISPLAY_NAME:-CollectiveAccess}
+      CA_ADMIN_EMAIL: ${CA_ADMIN_EMAIL:?set CA_ADMIN_EMAIL in .env}
+      CA_TIMEZONE: ${CA_TIMEZONE:-UTC}
+      CA_DEFAULT_LOCALE: ${CA_DEFAULT_LOCALE:-en_US}
+      CA_CACHE_BACKEND: redis
+      CA_REDIS_HOST: redis
+      # CA's upload (tus) component reads these names directly
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      CA_QUEUE_ENABLED: "true"
+      CA_STACKTRACE_ON_EXCEPTION: ${CA_STACKTRACE_ON_EXCEPTION:-false}
+      CA_LOG_KEEP_DAYS: ${CA_LOG_KEEP_DAYS:-30}
+      CA_ALLOW_INSTALLER_OVERWRITE: "false"
+      CA_SMTP_SERVER: ${CA_SMTP_SERVER:-}
+      CA_SMTP_PORT: ${CA_SMTP_PORT:-587}
+      CA_SMTP_USER: ${CA_SMTP_USER:-}
+      CA_SMTP_PASSWORD: ${CA_SMTP_PASSWORD:-}
+      CA_SMTP_AUTH: ${CA_SMTP_AUTH:-LOGIN}
+      CA_SMTP_SSL: ${CA_SMTP_SSL:-TLS}
+    volumes:
+      # Your CollectiveAccess configuration overrides (app/conf/local). Read-only.
+      - ${CA_APPDATA:?set CA_APPDATA in .env}/config/local:/var/www/html/app/conf/local:ro
+      # Optional: your own setup.php instead of the image's environment-driven
+      # one. Create the file first, then uncomment. Restart the web container
+      # after editing it.
+      # - ${CA_APPDATA}/config/setup.php:/var/www/html/setup.php:ro
+      # Temporary files (uploads, media processing, exports) and Providence's
+      # logs. Kept in Docker volumes; neither needs backing up.
+      - ca-tmp:/var/lib/collectiveaccess/tmp
+      - ca-log:/var/lib/collectiveaccess/log
+      # CA's media: uploaded access copies and generated derivatives
+      - ${CA_MEDIA:?set CA_MEDIA in .env}:/var/www/html/media/collectiveaccess
+      # Staging folder the batch media importer can read from. Read-only.
+      - ${CA_INGEST:?set CA_INGEST in .env}:/srv/ingest:ro
+    ports:
+      # Staff interface. Keep it on the LAN / VPN; never expose it publicly.
+      - "${CA_HTTP_BIND:-0.0.0.0}:${CA_HTTP_PORT:-8080}:80"
+
+  db:
+    logging: *logging
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${CA_DB_DATABASE:-collectiveaccess}
+      MYSQL_USER: ${CA_DB_USER:-collectiveaccess}
+      MYSQL_PASSWORD: ${CA_DB_PASSWORD:?set CA_DB_PASSWORD in .env}
+      MYSQL_ROOT_PASSWORD: ${CA_DB_ROOT_PASSWORD:?set CA_DB_ROOT_PASSWORD in .env}
+    command:
+      - --character-set-server=utf8mb4
+      # Same collation CollectiveAccess uses when it creates its tables
+      - --collation-server=utf8mb4_general_ci
+      - --innodb-buffer-pool-size=${CA_DB_BUFFER_POOL:-1G}
+      - --max-allowed-packet=256M
+    volumes:
+      - ${CA_APPDATA}/db:/var/lib/mysql
+      # Database dumps written by scripts/db-backup.sh
+      - ${CA_BACKUPS:?set CA_BACKUPS in .env}/database:/backups
+    healthcheck:
+      # 127.0.0.1 (TCP) only answers once first-run initialisation has finished
+      test: ["CMD-SHELL", "MYSQL_PWD=\"$$MYSQL_ROOT_PASSWORD\" mysqladmin ping -h 127.0.0.1 -uroot --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
+
+  redis:
+    logging: *logging
+    image: redis:8-alpine
+    restart: unless-stopped
+    # Pure cache: no persistence, bounded memory, evict least-recently-used.
+    command:
+      - redis-server
+      - --save
+      - ""
+      - --appendonly
+      - "no"
+      - --maxmemory
+      - ${CA_REDIS_MAXMEMORY:-512mb}
+      - --maxmemory-policy
+      - allkeys-lru
+
+volumes:
+  ca-tmp:
+  ca-log:

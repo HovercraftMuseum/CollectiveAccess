@@ -1,0 +1,69 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended", "docker:pinDigests"],
+  "labels": ["dependencies"],
+  "dependencyDashboard": true,
+  "packageRules": [
+    {
+      "description": "Runtime channel: PHP base image security/digest updates merge themselves once CI passes",
+      "matchManagers": ["dockerfile"],
+      "matchPackageNames": ["php"],
+      "matchUpdateTypes": ["digest", "patch", "pin", "pinDigest"],
+      "automerge": true,
+      "labels": ["runtime-auto"]
+    },
+    {
+      "description": "Runtime channel: a new PHP minor/major (e.g. 8.4 -> 8.5) must be checked against CA's supported versions",
+      "matchManagers": ["dockerfile"],
+      "matchPackageNames": ["php"],
+      "matchUpdateTypes": ["minor", "major"],
+      "automerge": false,
+      "labels": ["runtime-upgrade"]
+    },
+    {
+      "description": "Runtime channel: PHP extension installer helper",
+      "matchManagers": ["dockerfile"],
+      "matchPackageNames": ["ghcr.io/mlocati/php-extension-installer"],
+      "matchUpdateTypes": ["digest", "patch", "minor", "pin", "pinDigest"],
+      "automerge": true,
+      "labels": ["runtime-auto"]
+    },
+    {
+      "description": "Build tooling: GitHub Actions minor/patch updates merge themselves",
+      "matchManagers": ["github-actions"],
+      "matchUpdateTypes": ["digest", "patch", "minor", "pin", "pinDigest"],
+      "automerge": true,
+      "labels": ["ci-auto"]
+    },
+    {
+      "description": "Services in compose.yaml (MySQL, Redis) are only changed by hand; see docs/upgrading.md",
+      "matchManagers": ["docker-compose"],
+      "pinDigests": false,
+      "automerge": false,
+      "labels": ["service-upgrade"]
+    },
+    {
+      "description": "Stay on MySQL 8; CollectiveAccess does not support MySQL 9",
+      "matchManagers": ["docker-compose"],
+      "matchPackageNames": ["mysql"],
+      "allowedVersions": "<9"
+    },
+    {
+      "description": "Application channel: CollectiveAccess releases are NEVER merged automatically",
+      "matchPackageNames": ["collectiveaccess/providence"],
+      "automerge": false,
+      "labels": ["app-upgrade"],
+      "prBodyNotes": ["Merging this publishes a new version tag. Follow [docs/upgrading.md](docs/upgrading.md) before merging and after deploying."]
+    }
+  ],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "Track the CollectiveAccess Providence version pinned in the Dockerfile",
+      "managerFilePatterns": ["/^docker/Dockerfile$/"],
+      "matchStrings": ["ARG CA_VERSION=(?<currentValue>\\d+\\.\\d+\\.\\d+)"],
+      "depNameTemplate": "collectiveaccess/providence",
+      "datasourceTemplate": "github-releases"
+    }
+  ]
+}

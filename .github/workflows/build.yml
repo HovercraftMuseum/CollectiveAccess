@@ -1,0 +1,159 @@
+# Build, test and publish the CollectiveAccess image to GitHub Container Registry.
+#
+# Triggers:
+#   pull_request  build + test; publishes a throwaway :pr-<number> tag for
+#                 testing against a cloned database. Never touches version tags.
+#                 PRs from forks are built and tested but not published.
+#   push to main  build + test; publishes :<CA_VERSION>, :<CA_VERSION>-r<run>
+#                 and :sha-<commit>.
+#   schedule      weekly rebuild with no cache, so Debian/PHP security fixes
+#                 land under the same :<CA_VERSION> tag, where hosts pick
+#                 them up as an image update.
+#   manual        "Run workflow" button, e.g. after a published security advisory.
+#
+# Nothing is published unless the smoke and integration tests pass.
+
+name: Build image
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+      - ".env.example"
+  schedule:
+    - cron: "17 4 * * 1"   # Mondays 04:17 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Work out names and versions
+        id: meta
+        run: |
+          ca_version="$(grep -m1 '^ARG CA_VERSION=' docker/Dockerfile | cut -d= -f2)"
+          if [ -z "$ca_version" ]; then
+            echo "Could not read CA_VERSION from docker/Dockerfile" >&2
+            exit 1
+          fi
+          image="ghcr.io/${GITHUB_REPOSITORY,,}"
+          short_sha="${GITHUB_SHA::7}"
+          echo "ca_version=$ca_version" >> "$GITHUB_OUTPUT"
+          echo "image=$image" >> "$GITHUB_OUTPUT"
+
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            tags="$image:pr-${{ github.event.number }}"
+          else
+            tags="$image:$ca_version,$image:$ca_version-r${{ github.run_number }},$image:sha-$short_sha"
+          fi
+          echo "tags=$tags" >> "$GITHUB_OUTPUT"
+          echo "CollectiveAccess $ca_version -> $tags"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build for testing
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile
+          platforms: linux/amd64
+          load: true
+          pull: true
+          # Weekly rebuilds skip the cache so apt packages are refreshed too.
+          no-cache: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
+          tags: ca-test:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Smoke test
+        run: scripts/smoke-test.sh ca-test:latest
+
+      - name: Integration test (install into a real MySQL)
+        run: |
+          set -eu
+          docker network create ci
+          docker run -d --name db --network ci \
+            -e MYSQL_DATABASE=collectiveaccess \
+            -e MYSQL_USER=collectiveaccess \
+            -e MYSQL_PASSWORD=ci-password \
+            -e MYSQL_ROOT_PASSWORD=ci-root \
+            "$(grep -m1 'image: mysql' compose.yaml | awk '{print $2}')" \
+            --character-set-server=utf8mb4 --collation-server=utf8mb4_general_ci
+
+          docker run -d --name web --network ci -p 8080:80 \
+            -e CA_DB_HOST=db \
+            -e CA_DB_DATABASE=collectiveaccess \
+            -e CA_DB_USER=collectiveaccess \
+            -e CA_DB_PASSWORD=ci-password \
+            -e CA_ADMIN_EMAIL=ci@example.org \
+            -e CA_CACHE_BACKEND=file \
+            -e CA_DB_WAIT_TIMEOUT=180 \
+            ca-test:latest
+
+          echo "Waiting for web container"
+          for i in $(seq 1 60); do
+            if curl -fsS http://localhost:8080/healthz.txt >/dev/null 2>&1; then break; fi
+            sleep 3
+          done
+          curl -fsS http://localhost:8080/healthz.txt
+
+          echo "Installing CollectiveAccess with the default profile"
+          docker exec web cautils install --profile-name=default --admin-email=ci@example.org
+
+          echo "Requesting the login page"
+          status="$(curl -s -o page.html -w '%{http_code}' -L http://localhost:8080/index.php)"
+          echo "HTTP $status"
+          if grep -Eqi 'Composer detected issues|Fatal error|Uncaught' page.html; then
+            echo "Application error in page:" >&2
+            head -c 2000 page.html >&2
+            exit 1
+          fi
+          if [ "$status" -ge 500 ]; then
+            exit 1
+          fi
+
+      - name: Container logs (on failure)
+        if: failure()
+        run: |
+          docker logs web || true
+          docker exec web sh -c 'tail -n 100 /var/lib/collectiveaccess/log/*' || true
+
+      - name: Log in to GitHub Container Registry
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile
+          platforms: linux/amd64
+          push: true
+          # Reuses the layers built above, so this is quick and identical.
+          cache-from: type=gha
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.collectiveaccess.version=${{ steps.meta.outputs.ca_version }}

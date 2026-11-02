@@ -1,0 +1,27 @@
+# --- Secrets: never commit ---------------------------------------------------
+.env
+*.env
+!.env.example
+secrets/
+*.pem
+*.key
+
+# --- Local test data -----------------------------------------------------------
+# If you run the stack on a workstation for testing, keep its data here.
+data/
+*.sql
+*.sql.gz
+*.sql.gz.sha256
+
+# --- Downloads and build leftovers --------------------------------------------
+*.zip
+*.tar.gz
+providence/
+
+# --- Editors and operating systems ---------------------------------------------
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*~
