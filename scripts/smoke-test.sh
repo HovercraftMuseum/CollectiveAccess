@@ -34,9 +34,11 @@ check() {
 echo "Smoke testing $IMAGE"
 
 echo "PHP extensions:"
-for ext in bcmath curl exif gd gmp imagick intl mbstring mysqli opcache pcntl posix redis xml zip; do
+for ext in bcmath curl exif gd gmp imagick intl mbstring mysqli pcntl posix redis xml zip; do
     check "php ext $ext" php -r "exit(extension_loaded('$ext') ? 0 : 1);"
 done
+# OPcache registers itself as "Zend OPcache", not "opcache"
+check "php ext opcache" php -r "exit(extension_loaded('Zend OPcache') ? 0 : 1);"
 check "gmagick NOT loaded (CA: never install both)" php -r "exit(extension_loaded('gmagick') ? 1 : 0);"
 
 echo "Application:"
