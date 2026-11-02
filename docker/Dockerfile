@@ -134,8 +134,7 @@ RUN mkdir -p /var/lib/collectiveaccess/tmp /var/lib/collectiveaccess/log \
 
 COPY docker/entrypoint.sh /usr/local/bin/ca-entrypoint
 COPY docker/cautils /usr/local/bin/cautils
-COPY docker/ca-prune-logs /usr/local/bin/ca-prune-logs
-RUN chmod 0755 /usr/local/bin/ca-entrypoint /usr/local/bin/cautils /usr/local/bin/ca-prune-logs
+RUN chmod 0755 /usr/local/bin/ca-entrypoint /usr/local/bin/cautils
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
   CMD curl -fsS http://localhost/healthz.txt >/dev/null || exit 1

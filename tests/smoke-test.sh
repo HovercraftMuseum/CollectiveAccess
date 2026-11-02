@@ -2,7 +2,7 @@
 # Smoke test for a freshly built image. Used by CI before anything is
 # published, and handy locally:
 #
-#   scripts/smoke-test.sh ghcr.io/your-org/collective-access:test
+#   tests/smoke-test.sh ghcr.io/your-org/collective-access:test
 #
 # Checks, without needing a database:
 #   - required and recommended PHP extensions are loaded
@@ -46,7 +46,6 @@ check "composer platform check" php /var/www/html/vendor/composer/platform_check
 check "vendor autoloader loads" php -r "require '/var/www/html/vendor/autoload.php';"
 check "setup.php syntax" php -l /var/www/html/setup.php
 check "caUtils present" test -f /var/www/html/support/bin/caUtils
-check "ca-prune-logs present" test -x /usr/local/bin/ca-prune-logs
 check "version file" grep -q "__CollectiveAccess_Version__" /var/www/html/app/version.php
 
 echo "Media tools:"

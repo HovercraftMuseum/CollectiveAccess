@@ -82,7 +82,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Smoke test
-        run: scripts/smoke-test.sh ca-test:latest
+        run: tests/smoke-test.sh ca-test:latest
 
       - name: Integration test (install into a real MySQL)
         run: |

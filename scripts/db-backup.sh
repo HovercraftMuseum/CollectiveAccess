@@ -16,12 +16,11 @@
 # Dumps are plain .sql so they can be opened, searched or restored directly.
 # On storage with transparent compression they take a fraction of their apparent size on disk.
 #
-# Old dumps are NOT deleted unless KEEP_DAYS is set (e.g. KEEP_DAYS=90).
+# Old dumps are NOT deleted unless CA_BACKUP_KEEP_DAYS is set in .env.
 # Snapshots of the backup storage keep history of the application/ copy.
 set -eu
 
 STACK_DIR="${STACK_DIR:-$(cd "$(dirname "$0")/.." && pwd)}"
-KEEP_DAYS="${KEEP_DAYS:-}"
 STAMP="$(date +%Y-%m-%d_%H%M%S)"
 
 cd "$STACK_DIR"
@@ -35,6 +34,10 @@ CA_APPDATA="$(env_get CA_APPDATA)"
 CA_BACKUPS="$(env_get CA_BACKUPS)"
 : "${CA_APPDATA:?CA_APPDATA is not set in .env}"
 : "${CA_BACKUPS:?CA_BACKUPS is not set in .env}"
+KEEP_DAYS="$(env_get CA_BACKUP_KEEP_DAYS)"
+case "$KEEP_DAYS" in
+    *[!0-9]*) echo "[db-backup] CA_BACKUP_KEEP_DAYS must be a whole number of days" >&2; exit 1 ;;
+esac
 
 log() { echo "[db-backup] $*"; }
 

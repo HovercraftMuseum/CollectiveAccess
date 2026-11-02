@@ -42,7 +42,8 @@ Others you may want to change:
 | `CA_DB_BUFFER_POOL` | `1G` | MySQL InnoDB buffer pool size |
 | `CA_SMTP_*` | empty | Outgoing mail server |
 | `CA_STACKTRACE_ON_EXCEPTION` | `false` | Show full errors in the browser |
-| `CA_LOG_KEEP_DAYS` | `30` | Days of Providence log files to keep (see [Scheduled jobs](#scheduled-jobs)) |
+| `CA_BACKUP_KEEP_DAYS` | empty | Days of database dumps to keep; empty keeps all |
+| `CA_LOG_KEEP_DAYS` | `30` | Days of Providence log files to keep |
 
 ### setup.php
 
@@ -146,8 +147,8 @@ docker compose exec web cautils update-database-schema
 Run these daily from the stack folder, e.g. from cron:
 
 ```sh
-scripts/db-backup.sh                          # see Backups
-docker compose exec -T web ca-prune-logs      # delete old Providence log files
+scripts/db-backup.sh     # back up the database and configuration
+scripts/prune-logs.sh    # delete old Providence log files
 ```
 
 Container logs (`docker compose logs`) are rotated by Docker at 50 MB per
@@ -156,7 +157,7 @@ service.
 ## Backups
 
 `scripts/db-backup.sh` dumps the database and copies the stack and config
-folders to `CA_BACKUPS`. Set `KEEP_DAYS` to delete dumps older than that many days. Back up
+folders to `CA_BACKUPS`. Set `CA_BACKUP_KEEP_DAYS` to delete older dumps. Back up
 `CA_MEDIA` separately.
 
 To restore a dump:
