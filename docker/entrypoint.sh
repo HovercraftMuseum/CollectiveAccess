@@ -27,19 +27,25 @@ if [ "$(id -u)" = "0" ]; then
 fi
 
 # --- 2. Writable directories -------------------------------------------------
-TEMP_DIR="${CA_TEMP_DIR:-/var/lib/collectiveaccess/tmp}"
+# The ca-tmp volume holds Providence's temp folder (ca/), which Providence
+# empties on install and on schema updates, plus two upload staging folders
+# beside it so they survive that: php-uploads/ (PHP's upload_tmp_dir, see
+# php/collectiveaccess.ini) and media-uploads/ (the media uploader, see
+# Dockerfile).
+STATE_TMP="/var/lib/collectiveaccess/tmp"
+TEMP_DIR="${CA_TEMP_DIR:-$STATE_TMP/ca}"
 LOG_DIR="${CA_LOG_DIR:-/var/lib/collectiveaccess/log}"
 MEDIA_DIR="/var/www/html/media/collectiveaccess"
 PURIFIER_DIR="/var/www/html/vendor/ezyang/htmlpurifier/library/HTMLPurifier/DefinitionCache"
+FONT_DIR="/var/www/html/app/fonts"
 
-# uploads/ is PHP's upload_tmp_dir (see php/collectiveaccess.ini)
-for dir in "$TEMP_DIR" "$TEMP_DIR/purifier" "$TEMP_DIR/uploads" "$LOG_DIR"; do
+for dir in "$TEMP_DIR" "$STATE_TMP/php-uploads" "$STATE_TMP/media-uploads" "$LOG_DIR"; do
     mkdir -p "$dir"
 done
 
 if [ "$(id -u)" = "0" ]; then
-    # tmp and log are small; always make sure www-data owns them.
-    chown -R www-data:www-data "$TEMP_DIR" "$LOG_DIR" "$PURIFIER_DIR"
+    # These are small; always make sure www-data owns them.
+    chown -R www-data:www-data "$STATE_TMP" "$TEMP_DIR" "$LOG_DIR" "$PURIFIER_DIR" "$FONT_DIR"
     # The media folder can be huge: only fix the top level, never recurse.
     chown www-data:www-data "$MEDIA_DIR" 2>/dev/null || true
 fi
