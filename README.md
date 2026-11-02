@@ -38,6 +38,7 @@ Others you may want to change:
 | `CA_TIMEZONE` | `UTC` | PHP time zone name |
 | `CA_DEFAULT_LOCALE` | `en_US` | Must exist in your installation profile |
 | `CA_UID`, `CA_GID` | empty | Owner of the storage folders (see [Ownership](#ownership)) |
+| `CA_INGEST_MODE` | `ro` | `rw` lets the importer delete files after importing them (see [Importing media](#importing-media)) |
 | `CA_HTTP_BIND`, `CA_HTTP_PORT` | `0.0.0.0`, `8080` | Where the web interface listens. Don't expose it to the internet. |
 | `CA_DB_BUFFER_POOL` | `1G` | MySQL InnoDB buffer pool size |
 | `CA_SMTP_*` | empty | Outgoing mail server |
@@ -62,7 +63,7 @@ then restart the `web` container. For example:
 
 ```
 # ${CA_APPDATA}/config/local/app.conf
-batch_media_import_root_directory = /srv/ingest
+taskqueue_max_processes = 2
 ```
 
 ## Storage
@@ -72,7 +73,7 @@ batch_media_import_root_directory = /srv/ingest
 | `CA_APPDATA` | `config/`, the database (`db/`) and usually the stack folder | Yes |
 | `CA_MEDIA` | Uploaded media and generated derivatives | Yes |
 | `CA_BACKUPS` | Database dumps and a copy of the configuration | Yes, off-site |
-| `CA_INGEST` | Files waiting to be imported | Optional |
+| `CA_INGEST` | Files waiting to be imported (see [Importing media](#importing-media)) | Optional |
 
 An example layout, with fast storage under `/srv/fast` and large storage under
 `/srv/bulk`:
@@ -99,7 +100,7 @@ An example layout, with fast storage under `/srv/fast` and large storage under
 | `${CA_APPDATA}/config/local` | web: `/var/www/html/app/conf/local` | read-only |
 | `${CA_APPDATA}/config/setup.php` (optional) | web: `/var/www/html/setup.php` | read-only |
 | `${CA_MEDIA}` | web: `/var/www/html/media/collectiveaccess` | read-write |
-| `${CA_INGEST}` | web: `/srv/ingest` | read-only |
+| `${CA_INGEST}` | web: `/var/www/html/import` | read-only, or read-write with `CA_INGEST_MODE=rw` |
 | `${CA_APPDATA}/db` | db: `/var/lib/mysql` | read-write |
 | `${CA_BACKUPS}/database` | db: `/backups` | read-write |
 
@@ -131,6 +132,24 @@ Note the administrator password it prints.
 Providence ships with several installation profiles, and more are in the
 [InstallationProfiles](https://github.com/collectiveaccess/InstallationProfiles)
 repository. To use your own, mount it into `/var/www/html/install/profiles/xml/`.
+
+## Importing media
+
+To add many files at once, put them in `CA_INGEST` and use Providence's batch
+media importer: **Import → Media** in the browser, or
+
+```sh
+docker compose exec web cautils import-media --source=<folder> --include-subdirectories
+```
+
+where `<folder>` is relative to `CA_INGEST`. The importer copies each file into
+`CA_MEDIA` and attaches it to the record whose identifier matches the file
+name, creating a record if none matches. See `cautils help import-media` for
+the options.
+
+The folder is read-only by default, so imports never remove anything from it.
+Set `CA_INGEST_MODE=rw` if you want the importer's "delete after import" option
+to work.
 
 ## Command-line tools
 

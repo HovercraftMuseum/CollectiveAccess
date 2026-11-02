@@ -128,7 +128,7 @@ RUN echo "ok" > /var/www/html/healthz.txt
 # Writable directories, outside the web root. Compose mounts volumes on tmp
 # and log.
 RUN mkdir -p /var/lib/collectiveaccess/tmp /var/lib/collectiveaccess/log \
-             /var/www/html/media/collectiveaccess /srv/ingest \
+             /var/www/html/media/collectiveaccess \
  && chown -R www-data:www-data /var/lib/collectiveaccess /var/www/html/media \
  && chown -R www-data:www-data /var/www/html/vendor/ezyang/htmlpurifier/library/HTMLPurifier/DefinitionCache
 

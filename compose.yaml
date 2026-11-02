@@ -73,8 +73,9 @@ services:
       - ca-log:/var/lib/collectiveaccess/log
       # CA's media: uploaded access copies and generated derivatives
       - ${CA_MEDIA:?set CA_MEDIA in .env}:/var/www/html/media/collectiveaccess
-      # Staging folder the batch media importer can read from. Read-only.
-      - ${CA_INGEST:?set CA_INGEST in .env}:/srv/ingest:ro
+      # Staging folder for the batch media importer (Providence's import
+      # folder). Read-only unless CA_INGEST_MODE=rw.
+      - ${CA_INGEST:?set CA_INGEST in .env}:/var/www/html/import:${CA_INGEST_MODE:-ro}
     ports:
       # Staff interface. Keep it on the LAN / VPN; never expose it publicly.
       - "${CA_HTTP_BIND:-0.0.0.0}:${CA_HTTP_PORT:-8080}:80"
