@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1
+# syntax=docker/dockerfile:1@sha256:4edf897a3ffa55b89f906fc8cc78afdb3f1834cc9c7083565e611a8a7d5fe99e
 #
 # CollectiveAccess Providence container image
 #
@@ -24,7 +24,7 @@ ARG CA_SHA256=11c240907225ed08b3439b70f41b08596c87dde17245bb92d68509a2db31d536
 # ---------------------------------------------------------------------------
 # Stage 1: fetch and verify the official release package
 # ---------------------------------------------------------------------------
-FROM php:8.4-apache-trixie AS source
+FROM php:8.4-apache-trixie@sha256:884f64b47174de2c0e813270fe7b24a18605729fcebe201302d98c38805530d0 AS source
 
 ARG CA_VERSION
 ARG CA_SHA256
@@ -48,7 +48,7 @@ RUN curl -fsSL -o providence.zip \
 # ---------------------------------------------------------------------------
 # Stage 2: runtime
 # ---------------------------------------------------------------------------
-FROM php:8.4-apache-trixie AS runtime
+FROM php:8.4-apache-trixie@sha256:884f64b47174de2c0e813270fe7b24a18605729fcebe201302d98c38805530d0 AS runtime
 
 ARG CA_VERSION
 # LibreOffice adds ~600 MB. Only needed for previews/indexing of Word, Excel
@@ -61,7 +61,7 @@ LABEL org.opencontainers.image.title="CollectiveAccess Providence" \
       org.collectiveaccess.version="${CA_VERSION}"
 
 # Helper that installs PHP extensions and their system libraries in one step.
-COPY --from=ghcr.io/mlocati/php-extension-installer:2 /usr/bin/install-php-extensions /usr/local/bin/
+COPY --from=ghcr.io/mlocati/php-extension-installer:2@sha256:4fd45396c16685266d32bf147a24ecd5e81029d3820295895bf4a90131190ac9 /usr/bin/install-php-extensions /usr/local/bin/
 
 # PHP extensions.
 # Required by CA:     gd curl mysqli zip xml mbstring intl bcmath gmp opcache
