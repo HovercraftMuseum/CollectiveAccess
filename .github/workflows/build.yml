@@ -41,7 +41,7 @@ jobs:
     timeout-minutes: 60
     steps:
       - name: Check out
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Work out names and versions
         id: meta
