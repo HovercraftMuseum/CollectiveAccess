@@ -18,7 +18,7 @@
 
 # CollectiveAccess Providence release to package. Single source of truth.
 # When changing CA_VERSION you MUST also update CA_SHA256 (see docs/upgrading.md).
-ARG CA_VERSION=2.0.11
+ARG CA_VERSION=2.0.12
 ARG CA_SHA256=11c240907225ed08b3439b70f41b08596c87dde17245bb92d68509a2db31d536
 
 # ---------------------------------------------------------------------------
