@@ -24,7 +24,7 @@ ARG CA_SHA256=11c240907225ed08b3439b70f41b08596c87dde17245bb92d68509a2db31d536
 # ---------------------------------------------------------------------------
 # Stage 1: fetch and verify the official release package
 # ---------------------------------------------------------------------------
-FROM php:8.4-apache-trixie AS source
+FROM php:8.6-apache-trixie@sha256:17e914da4f48db2a395f3a9e69206cd311b2d8dfdebc802477a31a69a246ecff AS source
 
 ARG CA_VERSION
 ARG CA_SHA256
@@ -48,7 +48,7 @@ RUN curl -fsSL -o providence.zip \
 # ---------------------------------------------------------------------------
 # Stage 2: runtime
 # ---------------------------------------------------------------------------
-FROM php:8.4-apache-trixie AS runtime
+FROM php:8.6-apache-trixie@sha256:17e914da4f48db2a395f3a9e69206cd311b2d8dfdebc802477a31a69a246ecff AS runtime
 
 ARG CA_VERSION
 # LibreOffice adds ~600 MB. Only needed for previews/indexing of Word, Excel
